@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0b3d5c">
+<title>Aegean 2048 · Yamas</title>
+<style>
+  :root{
+    --bg:#0b1f2b;
+    --bg2:#123a52;
+    --board:#0e2f44;
+    --cell:rgba(255,255,255,.06);
+    --gold:#e8b04b;
+    --white:#f6f4ec;
+    --blue:#1f6f9e;
+    --text:#eaf3f7;
+    --muted:#8fb2c4;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;margin:0;}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:radial-gradient(120% 120% at 50% 0%,var(--bg2) 0%,var(--bg) 55%);
+    color:var(--text);
+    min-height:100dvh;
+    display:flex;align-items:center;justify-content:center;
+    padding:16px;
+    overflow:hidden;
+  }
+  .wrap{width:100%;max-width:460px;}
+  header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;}
+  .brand{line-height:1;}
+  .brand h1{
+    margin:0;font-size:30px;font-weight:800;letter-spacing:.5px;
+    background:linear-gradient(90deg,var(--gold),#f6f4ec);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+  .brand p{margin:3px 0 0;font-size:12px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;}
+  .scores{display:flex;gap:8px;}
+  .score{
+    background:linear-gradient(180deg,rgba(255,255,255,.09),rgba(255,255,255,.03));
+    border:1px solid rgba(255,255,255,.08);
+    border-radius:12px;padding:8px 14px;text-align:center;min-width:74px;
+    box-shadow:0 6px 18px rgba(0,0,0,.25);
+  }
+  .score span{display:block;font-size:10px;letter-spacing:1.5px;color:var(--muted);text-transform:uppercase;}
+  .score b{font-size:20px;font-weight:800;}
+  .bar{display:flex;align-items:center;justify-content:space-between;margin:0 0 12px;}
+  .hint{font-size:12.5px;color:var(--muted);}
+  button.newgame{
+    appearance:none;border:none;cursor:pointer;
+    background:linear-gradient(180deg,var(--gold),#c98f2c);
+    color:#2a1c00;font-weight:800;font-size:13px;letter-spacing:.5px;
+    padding:10px 16px;border-radius:11px;
+    box-shadow:0 6px 16px rgba(232,176,75,.35);
+    transition:transform .08s ease, filter .15s ease;
+  }
+  button.newgame:active{transform:scale(.95);filter:brightness(1.05);}
+  .board-shell{position:relative;}
+  #board{
+    position:relative;
+    background:var(--board);
+    border-radius:16px;
+    padding:var(--gap);
+    box-shadow:inset 0 2px 10px rgba(0,0,0,.35),0 20px 50px rgba(0,0,0,.4);
+    touch-action:none;
+    --gap:12px;
+    aspect-ratio:1/1;width:100%;
+    overflow:hidden;
+  }
+  .grid{position:absolute;inset:var(--gap);display:grid;grid-template-columns:repeat(4,1fr);grid-template-rows:repeat(4,1fr);gap:var(--gap);}
+  .grid .cell{background:var(--cell);border-radius:11px;}
+  #tiles{position:absolute;inset:var(--gap);}
+  .tile{
+    position:absolute;display:flex;align-items:center;justify-content:center;
+    border-radius:11px;font-weight:800;
+    transition:transform .12s cubic-bezier(.2,.7,.3,1);
+    will-change:transform;
+    box-shadow:0 4px 12px rgba(0,0,0,.28);
+  }
+  .tile .v{transform:translateZ(0);}
+  @keyframes pop{0%{transform:scale(.1);}60%{transform:scale(1.12);}100%{transform:scale(1);}}
+  @keyframes merge{0%{transform:scale(1);}45%{transform:scale(1.22);}100%{transform:scale(1);}}
+  .tile.new .v{animation:pop .18s ease;}
+  .tile.merged .v{animation:merge .18s ease;}
+  /* tile colors */
+  .t2{background:linear-gradient(180deg,#2e5c73,#244a5e);color:#dff0f7;}
+  .t4{background:linear-gradient(180deg,#356a86,#295670);color:#eaf7ff;}
+  .t8{background:linear-gradient(180deg,#3f88a6,#2f6b86);color:#fff;}
+  .t16{background:linear-gradient(180deg,#4aa0b8,#358197);color:#fff;}
+  .t32{background:linear-gradient(180deg,#5bb6a8,#3f9083);color:#fff;}
+  .t64{background:linear-gradient(180deg,#7cc06f,#57964b);color:#fff;}
+  .t128{background:linear-gradient(180deg,#e9c86a,#d1a63e);color:#3a2a00;box-shadow:0 4px 16px rgba(232,176,75,.4);}
+  .t256{background:linear-gradient(180deg,#eec158,#dc9c2c);color:#3a2a00;box-shadow:0 4px 18px rgba(232,176,75,.5);}
+  .t512{background:linear-gradient(180deg,#f0b544,#e08f1e);color:#3a2a00;box-shadow:0 4px 20px rgba(232,176,75,.6);}
+  .t1024{background:linear-gradient(180deg,#f2a63a,#e07e14);color:#fff;box-shadow:0 4px 22px rgba(240,150,40,.65);}
+  .t2048{background:linear-gradient(180deg,#f59331,#e2650c);color:#fff;box-shadow:0 0 30px rgba(245,140,40,.8);}
+  .t2048 .v{text-shadow:0 1px 6px rgba(0,0,0,.3);}
+  .big{background:linear-gradient(180deg,#ef5f4c,#c9351f)!important;color:#fff!important;}
+  .overlay{
+    position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;
+    background:rgba(9,26,36,.86);backdrop-filter:blur(3px);border-radius:16px;z-index:5;text-align:center;padding:24px;
+    animation:fade .3s ease;
+  }
+  @keyframes fade{from{opacity:0;}to{opacity:1;}}
+  .overlay.show{display:flex;}
+  .overlay h2{margin:0;font-size:34px;font-weight:800;}
+  .overlay p{margin:0;color:var(--muted);font-size:14px;}
+  .overlay .win h2{color:var(--gold);}
+  .footer{margin-top:14px;text-align:center;font-size:11.5px;color:var(--muted);}
+  @media (max-width:420px){ .brand h1{font-size:26px;} .overlay h2{font-size:28px;} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <h1>Aegean 2048</h1>
+      <p>Yamas · Greece</p>
+    </div>
+    <div class="scores">
+      <div class="score"><span>Score</span><b id="score">0</b></div>
+      <div class="score"><span>Best</span><b id="best">0</b></div>
+    </div>
+  </header>
+
+  <div class="bar">
+    <div class="hint" id="hint">Σύρε ή βέλη · φτάσε το 2048</div>
+    <button class="newgame" id="newgame">Νέο παιχνίδι</button>
+  </div>
+
+  <div class="board-shell">
+    <div id="board">
+      <div class="grid" id="grid"></div>
+      <div id="tiles"></div>
+      <div class="overlay" id="overlay">
+        <div id="ovtext"></div>
+        <button class="newgame" id="ovbtn">Ξανά</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">Σύρε (κινητό) ή βέλη / WASD (υπολογιστής) · Made for Yamas 🇬🇷</div>
+</div>
+
+<script>
+(function(){
+  const SIZE=4;
+  const gridEl=document.getElementById('grid');
+  const tilesEl=document.getElementById('tiles');
+  const scoreEl=document.getElementById('score');
+  const bestEl=document.getElementById('best');
+  const overlay=document.getElementById('overlay');
+  const ovtext=document.getElementById('ovtext');
+  const board=document.getElementById('board');
+
+  // background cells
+  for(let i=0;i<SIZE*SIZE;i++){const c=document.createElement('div');c.className='cell';gridEl.appendChild(c);}
+
+  let grid, score=0, best=+(localStorage.getItem('aegean2048_best')||0), won=false, uid=1, busy=false;
+  bestEl.textContent=best;
+
+  function empty(){return Array.from({length:SIZE},()=>Array(SIZE).fill(null));}
+
+  function cellPct(i){ // percentage position for index 0..3 (4 tiles + 3 gaps between)
+    return (i*100)/SIZE;
+  }
+  function placeTile(t){
+    const el=t.el;
+    const p=100/SIZE;
+    el.style.width=`calc(${p}% - var(--gap)*${(SIZE-1)/SIZE})`;
+    el.style.height=el.style.width;
+    const gapAdjust=`var(--gap)*${((SIZE-1)/SIZE)}`;
+    // simpler: use grid math with gaps
+    const step=`calc((100% - var(--gap)*${SIZE-1}) / ${SIZE} + var(--gap))`;
+    el.style.transform=`translate(calc(${step} * ${t.c}), calc(${step} * ${t.r}))`;
+    const size=`calc((100% - var(--gap)*${SIZE-1}) / ${SIZE})`;
+    el.style.width=size;el.style.height=size;
+  }
+  function styleTile(t){
+    const v=t.value;
+    let cls='tile t'+(v<=2048?v:'2048');
+    if(v>2048) cls+=' big';
+    t.el.className=cls;
+    let fs=v<100?34:v<1000?28:v<10000?22:18;
+    t.el.innerHTML=`<span class="v" style="font-size:${fs}px">${v}</span>`;
+  }
+  function addTile(r,c,value){
+    const t={r,c,value,id:uid++,el:document.createElement('div')};
+    styleTile(t);
+    tilesEl.appendChild(t.el);
+    placeTile(t);
+    t.el.classList.add('new');
+    grid[r][c]=t;
+    return t;
+  }
+  function spawn(){
+    const free=[];
+    for(let r=0;r<SIZE;r++)for(let c=0;c<SIZE;c++)if(!grid[r][c])free.push([r,c]);
+    if(!free.length)return;
+    const [r,c]=free[Math.floor(Math.random()*free.length)];
+    addTile(r,c,Math.random()<0.9?2:4);
+  }
+  function reset(){
+    tilesEl.innerHTML='';
+    grid=empty();score=0;won=false;busy=false;
+    overlay.classList.remove('show');
+    document.getElementById('hint').textContent='Σύρε ή βέλη · φτάσε το 2048';
+    updateScore(0);
+    spawn();spawn();
+  }
+  function updateScore(add){
+    score+=add;scoreEl.textContent=score;
+    if(score>best){best=score;bestEl.textContent=best;localStorage.setItem('aegean2048_best',best);}
+  }
+
+  // movement. dir: 'l','r','u','d'
+  function move(dir){
+    if(busy)return;
+    const vec={l:[0,-1],r:[0,1],u:[-1,0],d:[1,0]}[dir];
+    const order=[];
+    for(let r=0;r<SIZE;r++)for(let c=0;c<SIZE;c++)order.push([r,c]);
+    // traverse from the far side toward move direction
+    if(vec[1]===1) order.sort((a,b)=>b[1]-a[1]);
+    if(vec[0]===1) order.sort((a,b)=>b[0]-a[0]);
+
+    let moved=false;
+    const mergedThisMove=[];
+    const newGrid=empty();
+    // reset merge flags via map
+    const occupied=empty();
+
+    // We process tiles in traversal order, moving each as far as possible
+    for(const [r,c] of order){
+      let t=grid[r][c];
+      if(!t)continue;
+      let nr=r,nc=c;
+      // find farthest
+      while(true){
+        const tr=nr+vec[0], tc=nc+vec[1];
+        if(tr<0||tr>=SIZE||tc<0||tc>=SIZE)break;
+        if(newGrid[tr][tc]){
+          // possible merge
+          const other=newGrid[tr][tc];
+          if(other.value===t.value && !other._merged){
+            // merge
+            other._merged=true;
+            other.value*=2;
+            updateScore(other.value);
+            // move t onto other then remove
+            t.r=tr;t.c=tc;placeTile(t);
+            const dead=t.el;
+            setTimeout(()=>{dead.remove();},120);
+            styleTile(other);
+            other.el.classList.remove('new');
+            void other.el.offsetWidth;
+            other.el.classList.add('merged');
+            other.el.addEventListener('animationend',()=>other.el.classList.remove('merged'),{once:true});
+            moved=true;
+            if(other.value===2048&&!won){won=true;}
+            t=null;
+            break;
+          }
+          break;
+        }
+        nr=tr;nc=tc;
+      }
+      if(t){
+        if(nr!==r||nc!==c)moved=true;
+        t.r=nr;t.c=nc;
+        newGrid[nr][nc]=t;
+        placeTile(t);
+      }
+    }
+    grid=newGrid;
+    // clear merge flags
+    for(let r=0;r<SIZE;r++)for(let c=0;c<SIZE;c++){if(grid[r][c])grid[r][c]._merged=false;}
+
+    if(moved){
+      busy=true;
+      setTimeout(()=>{
+        spawn();
+        busy=false;
+        if(won&&!overlay.classList.contains('show')){
+          showOverlay('win');
+        } else if(!canMove()){
+          showOverlay('lose');
+        }
+      },120);
+    }
+  }
+
+  function canMove(){
+    for(let r=0;r<SIZE;r++)for(let c=0;c<SIZE;c++){
+      if(!grid[r][c])return true;
+      const v=grid[r][c].value;
+      if(c+1<SIZE&&grid[r][c+1]&&grid[r][c+1].value===v)return true;
+      if(r+1<SIZE&&grid[r+1][c]&&grid[r+1][c].value===v)return true;
+    }
+    return false;
+  }
+
+  function showOverlay(type){
+    if(type==='win'){
+      ovtext.innerHTML='<div class="win"><h2>Έφτασες το 2048! 🏆</h2><p>Συνέχισε για ρεκόρ ή ξεκίνα ξανά.</p></div>';
+      overlay.classList.add('show');
+      // let them continue: tap board to dismiss and keep playing
+      overlay.querySelector('#ovbtn').textContent='Νέο';
+      const cont=()=>{overlay.classList.remove('show');board.removeEventListener('click',contHandler);};
+      const contHandler=(e)=>{ if(e.target.id==='ovbtn')return; cont(); };
+      board.addEventListener('click',contHandler);
+    } else {
+      ovtext.innerHTML='<h2>Game Over</h2><p>Score: '+score+' · Best: '+best+'</p>';
+      overlay.classList.add('show');
+      overlay.querySelector('#ovbtn').textContent='Ξανά';
+    }
+  }
+
+  // input: keyboard
+  window.addEventListener('keydown',e=>{
+    const k=e.key.toLowerCase();
+    const map={arrowleft:'l',a:'l',arrowright:'r',d:'r',arrowup:'u',w:'u',arrowdown:'d',s:'d'};
+    if(map[k]){e.preventDefault();move(map[k]);}
+  });
+  // input: touch swipe
+  let sx=0,sy=0,st=0;
+  board.addEventListener('touchstart',e=>{const t=e.touches[0];sx=t.clientX;sy=t.clientY;st=Date.now();},{passive:true});
+  board.addEventListener('touchend',e=>{
+    const t=e.changedTouches[0];const dx=t.clientX-sx,dy=t.clientY-sy;
+    const ax=Math.abs(dx),ay=Math.abs(dy);
+    if(Math.max(ax,ay)<24)return;
+    if(ax>ay)move(dx>0?'r':'l'); else move(dy>0?'d':'u');
+  },{passive:true});
+  // mouse drag (desktop alt)
+  let md=false,mx=0,my=0;
+  board.addEventListener('mousedown',e=>{md=true;mx=e.clientX;my=e.clientY;});
+  window.addEventListener('mouseup',e=>{
+    if(!md)return;md=false;
+    const dx=e.clientX-mx,dy=e.clientY-my,ax=Math.abs(dx),ay=Math.abs(dy);
+    if(Math.max(ax,ay)<30)return;
+    if(ax>ay)move(dx>0?'r':'l'); else move(dy>0?'d':'u');
+  });
+
+  document.getElementById('newgame').addEventListener('click',reset);
+  document.getElementById('ovbtn').addEventListener('click',reset);
+
+  reset();
+})();
+</script>
+</body>
+</html>
