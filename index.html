@@ -18,12 +18,12 @@
     --muted:#8fb2c4;
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
-  html,body{height:100%;margin:0;}
+  html,body{height:100%;width:100%;margin:0;overflow:hidden;overscroll-behavior:none;}
   body{
     font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
     background:radial-gradient(120% 120% at 50% 0%,var(--bg2) 0%,var(--bg) 55%);
     color:var(--text);
-    min-height:100dvh;
+    position:fixed;inset:0;
     display:flex;align-items:center;justify-content:center;
     padding:16px;
     overflow:hidden;
@@ -81,7 +81,9 @@
     will-change:transform;
     box-shadow:0 4px 12px rgba(0,0,0,.28);
   }
-  .tile .v{transform:translateZ(0);}
+  .tile .v{transform:translateZ(0);display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1;gap:3px;}
+  .tile .ic{font-size:clamp(24px,8.5vw,40px);}
+  .tile .num{font-size:12px;font-weight:800;opacity:.82;letter-spacing:.3px;}
   @keyframes pop{0%{transform:scale(.1);}60%{transform:scale(1.12);}100%{transform:scale(1);}}
   @keyframes merge{0%{transform:scale(1);}45%{transform:scale(1.22);}100%{transform:scale(1);}}
   .tile.new .v{animation:pop .18s ease;}
@@ -109,6 +111,9 @@
   .overlay.show{display:flex;}
   .overlay h2{margin:0;font-size:34px;font-weight:800;}
   .overlay p{margin:0;color:var(--muted);font-size:14px;}
+  .overlay .rules{color:var(--text);font-size:15px;line-height:1.7;max-width:300px;}
+  .overlay .rules.dim{color:var(--muted);font-size:13px;}
+  #intro h2{background:linear-gradient(90deg,var(--gold),#f6f4ec);-webkit-background-clip:text;background-clip:text;color:transparent;}
   .overlay .win h2{color:var(--gold);}
   .footer{margin-top:14px;text-align:center;font-size:11.5px;color:var(--muted);}
   @media (max-width:420px){ .brand h1{font-size:26px;} .overlay h2{font-size:28px;} }
@@ -136,6 +141,14 @@
     <div id="board">
       <div class="grid" id="grid"></div>
       <div id="tiles"></div>
+      <div class="overlay intro show" id="intro">
+        <h2>Aegean 2048 🇬🇷</h2>
+        <p class="rules">Ένωσε <b>δύο ίδια</b> για να τα ανεβάσεις:<br>
+          🍅+🍅→🫒 · 🫒+🫒→🧀 · 🧀+🧀→🍇 …<br>
+          Στόχος: φτάσε το <b>🇬🇷 2048</b>.</p>
+        <p class="rules dim">📱 Σύρε με το δάχτυλο &nbsp;·&nbsp; 💻 βέλη / WASD</p>
+        <button class="newgame" id="startbtn">Παίξε ▶</button>
+      </div>
       <div class="overlay" id="overlay">
         <div id="ovtext"></div>
         <button class="newgame" id="ovbtn">Ξανά</button>
@@ -184,13 +197,15 @@
     if(!grid)return;
     for(let r=0;r<SIZE;r++)for(let c=0;c<SIZE;c++){const t=grid[r][c];if(t)placeTile(t);}
   }
+  // Greek-food ladder: matching icons make merges intuitive at a glance.
+  const ICONS={2:'🍅',4:'🫒',8:'🧀',16:'🍇',32:'🍷',64:'🥖',128:'🐟',256:'🍯',512:'🏺',1024:'⛵',2048:'🇬🇷'};
   function styleTile(t){
     const v=t.value;
     let cls='tile t'+(v<=2048?v:'2048');
     if(v>2048) cls+=' big';
     t.el.className=cls;
-    let fs=v<100?34:v<1000?28:v<10000?22:18;
-    t.el.innerHTML=`<span class="v" style="font-size:${fs}px">${v}</span>`;
+    const icon=ICONS[v]||'✨';
+    t.el.innerHTML=`<span class="v"><span class="ic">${icon}</span><span class="num">${v}</span></span>`;
   }
   function addTile(r,c,value){
     const t={r,c,value,id:uid++,el:document.createElement('div')};
@@ -357,6 +372,15 @@
     if(Math.max(ax,ay)<30)return;
     if(ax>ay)move(dx>0?'r':'l'); else move(dy>0?'d':'u');
   });
+
+  const introEl=document.getElementById('intro');
+  function hideIntro(){ if(introEl.classList.contains('show'))introEl.classList.remove('show'); }
+  document.getElementById('startbtn').addEventListener('click',hideIntro);
+  window.addEventListener('keydown',hideIntro);
+  board.addEventListener('touchstart',hideIntro,{passive:true});
+  board.addEventListener('mousedown',hideIntro);
+  // lock the whole page: iOS ignores body overflow:hidden for touch scrolling
+  document.addEventListener('touchmove',e=>{e.preventDefault();},{passive:false});
 
   document.getElementById('newgame').addEventListener('click',reset);
   document.getElementById('ovbtn').addEventListener('click',reset);
