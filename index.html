@@ -158,25 +158,29 @@
   // background cells
   for(let i=0;i<SIZE*SIZE;i++){const c=document.createElement('div');c.className='cell';gridEl.appendChild(c);}
 
-  let grid, score=0, best=+(localStorage.getItem('aegean2048_best')||0), won=false, uid=1, busy=false;
+  let grid, score=0, best=+(localStorage.getItem('aegean2048_best')||0), won=false, winShown=false, uid=1, busy=false;
   bestEl.textContent=best;
 
   function empty(){return Array.from({length:SIZE},()=>Array(SIZE).fill(null));}
 
-  function cellPct(i){ // percentage position for index 0..3 (4 tiles + 3 gaps between)
-    return (i*100)/SIZE;
+  function metrics(){
+    // gap in px + cell size, measured against the actual tile layer width so
+    // tiles land exactly on the CSS-grid cells on any screen size.
+    const gap=parseFloat(getComputedStyle(board).getPropertyValue('--gap'))||12;
+    const W=tilesEl.clientWidth||board.clientWidth;
+    const cell=(W-gap*(SIZE-1))/SIZE;
+    return {gap,cell};
   }
   function placeTile(t){
-    const el=t.el;
-    const p=100/SIZE;
-    el.style.width=`calc(${p}% - var(--gap)*${(SIZE-1)/SIZE})`;
-    el.style.height=el.style.width;
-    const gapAdjust=`var(--gap)*${((SIZE-1)/SIZE)}`;
-    // simpler: use grid math with gaps
-    const step=`calc((100% - var(--gap)*${SIZE-1}) / ${SIZE} + var(--gap))`;
-    el.style.transform=`translate(calc(${step} * ${t.c}), calc(${step} * ${t.r}))`;
-    const size=`calc((100% - var(--gap)*${SIZE-1}) / ${SIZE})`;
-    el.style.width=size;el.style.height=size;
+    // px math: transform% would resolve against the tile itself, not the board.
+    const {gap,cell}=metrics();
+    t.el.style.width=cell+'px';
+    t.el.style.height=cell+'px';
+    t.el.style.transform=`translate(${t.c*(cell+gap)}px, ${t.r*(cell+gap)}px)`;
+  }
+  function relayout(){
+    if(!grid)return;
+    for(let r=0;r<SIZE;r++)for(let c=0;c<SIZE;c++){const t=grid[r][c];if(t)placeTile(t);}
   }
   function styleTile(t){
     const v=t.value;
@@ -204,7 +208,7 @@
   }
   function reset(){
     tilesEl.innerHTML='';
-    grid=empty();score=0;won=false;busy=false;
+    grid=empty();score=0;won=false;winShown=false;busy=false;
     overlay.classList.remove('show');
     document.getElementById('hint').textContent='Σύρε ή βέλη · φτάσε το 2048';
     updateScore(0);
@@ -282,7 +286,8 @@
       setTimeout(()=>{
         spawn();
         busy=false;
-        if(won&&!overlay.classList.contains('show')){
+        if(won&&!winShown){
+          winShown=true;
           showOverlay('win');
         } else if(!canMove()){
           showOverlay('lose');
@@ -344,8 +349,12 @@
 
   document.getElementById('newgame').addEventListener('click',reset);
   document.getElementById('ovbtn').addEventListener('click',reset);
+  window.addEventListener('resize',relayout);
+  window.addEventListener('orientationchange',()=>setTimeout(relayout,120));
 
   reset();
+  // re-measure once fonts/layout settle so first tiles are pixel-perfect
+  requestAnimationFrame(relayout);
 })();
 </script>
 </body>
